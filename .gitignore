@@ -1,0 +1,18 @@
+# 1. Ignore everything
+*
+
+# 2. Now, create exceptions to un-ignore specific files/folders.
+# The '!' character negates a pattern.
+
+# Un-ignore the .gitignore file itself so it gets committed.
+!.gitignore
+
+# Un-ignore the parent folder to allow Git to see inside it.
+!Assets/Game/
+!Assets/Resources/
+
+# Un-ignore your target folder and everything inside it.
+!Assets/Game/Scripts/
+!Assets/Game/Scripts/**
+!Assets/Resources/
+!Assets/Resources/**
