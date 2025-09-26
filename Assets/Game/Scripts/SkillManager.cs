@@ -1,19 +1,18 @@
 using Mirror;
 using System;
-using TMPro;
 using UnityEngine;
 
 public class SkillManager : NetworkBehaviour
 {
-    public SyncList<Skill> skills = new SyncList<Skill>();
+    public readonly SyncList<Skill> skills = new SyncList<Skill>();
 
     public override void OnStartServer()
     {
-        skills.Add(new Skill() { id = 1, skillName = "Woodcutting", level = 1, currentXP = 0, xpNeededToLevel = 83 });
-        skills.Add(new Skill() { id = 2, skillName = "Mining", level = 1, currentXP = 0, xpNeededToLevel = 83 });
-        skills.Add(new Skill() { id = 3, skillName = "Smithing", level = 1, currentXP = 0, xpNeededToLevel = 83 });
-        skills.Add(new Skill() { id = 4, skillName = "Fletching", level = 1, currentXP = 0, xpNeededToLevel = 83 });
-        skills.Add(new Skill() { id = 5, skillName = "Crafting", level = 1, currentXP = 0, xpNeededToLevel = 83 });
+        skills.Add(new Skill() { id = 1, skillName = "Woodcutting", level = 1, maxLevel = 100, currentXP = 0, xpNeededToLevel = 83d, xpMultiplier = 1.1f, xpRemaining = 83d });
+        skills.Add(new Skill() { id = 2, skillName = "Mining", level = 1, maxLevel = 100, currentXP = 0, xpNeededToLevel = 83d, xpMultiplier = 1.1f, xpRemaining = 83d });
+        skills.Add(new Skill() { id = 3, skillName = "Smithing", level = 1, maxLevel = 100, currentXP = 0, xpNeededToLevel = 83d, xpMultiplier = 1.1f, xpRemaining = 83d });
+        skills.Add(new Skill() { id = 4, skillName = "Fletching", level = 1, maxLevel = 100, currentXP = 0, xpNeededToLevel = 83d, xpMultiplier = 1.1f, xpRemaining = 83d });
+        skills.Add(new Skill() { id = 5, skillName = "Crafting", level = 1, maxLevel = 100, currentXP = 0, xpNeededToLevel = 83d, xpMultiplier = 1.1f, xpRemaining = 83d });
     }
 
     public override void OnStartAuthority()
@@ -24,64 +23,54 @@ public class SkillManager : NetworkBehaviour
 
         foreach (Skill skill in skills)
         {
-            //GameObject skillUI = Instantiate(CanvasManager.instance.skillUIPrefab, CanvasManager.instance.skillsTransform);
+            GameObject skillUIPrefab = Instantiate(CanvasManager.instance.skillUIPrefab, CanvasManager.instance.skillsTransform);
 
-            //skillUI.GetComponentInChildren<TextMeshPro>().text = $"{skill.skillName} / {skill.currentXP}";
+            skillUIPrefab.name = skill.skillName;
+
+            SkillUI skillUI = skillUIPrefab.GetComponent<SkillUI>();
+
+            if (skillUI != null)
+            { 
+                skillUI.Setup(skill.skillName, skill.level, (float)skill.currentXP);
+            }
         }
     }
 
     [Server]
-    public void AddXP(uint _skillID, double _xpToAdd)
+    public void AddXP(uint skillID, double xpToAdd)
     {
-        Skill skillToUpdate = skills.Find(s => s.id == _skillID);
+        // It's safer to work with the index when modifying structs in a list.
+        int index = skills.FindIndex(s => s.id == skillID);
+        if (index == -1) return;
 
-        // Add the new XP, multiplied by the multiplier
-        skillToUpdate.currentXP += _xpToAdd * skillToUpdate.xpMultiplier;
+        Skill skill = skills[index];
+        skill.currentXP += xpToAdd * skill.xpMultiplier;
 
-        // Recalculate remaining XP
-        skillToUpdate.xpRemaining = skillToUpdate.xpNeededToLevel - skillToUpdate.currentXP;
-
-        // Check for level-up and loop until all levels are gained
-        while (skillToUpdate.currentXP >= skillToUpdate.xpNeededToLevel && skillToUpdate.level < skillToUpdate.maxLevel)
+        // Loop to handle gaining multiple levels at once.
+        while (skill.currentXP >= skill.xpNeededToLevel && skill.level < skill.maxLevel)
         {
-            LevelUp(_skillID, skillToUpdate.level++);
+            // Subtract the XP for the level we just completed.
+            skill.currentXP -= skill.xpNeededToLevel;
+
+            // Increment the level directly.
+            skill.level++;
+
+            // Calculate the XP needed for the new next level.
+            skill.xpNeededToLevel = Mathf.Round(83f * Mathf.Pow(1.05f, skill.level));
         }
+
+        // Update the remaining XP for the UI after all level ups.
+        skill.xpRemaining = skill.xpNeededToLevel - skill.currentXP;
+
+        // Because Skill is a struct, you MUST write the modified copy 
+        // back to the SyncList to trigger the network update.
+        skills[index] = skill;
     }
 
     [Server]
     public void RemoveXP(uint _skillID, double _xpToRemove)
     {
 
-    }
-
-    [Server]
-    public void LevelUp(uint _skillID, int _newLevel)
-    {
-        Skill skillToUpdate = skills.Find(s => s.id == _skillID);
-
-        // First, subtract the XP needed to get to the next level
-        skillToUpdate.currentXP -= skillToUpdate.xpNeededToLevel;
-
-        // Then, increment the level
-        skillToUpdate.level = _newLevel;
-
-        // Calculate the XP needed for the next level
-        skillToUpdate.xpNeededToLevel = Mathf.Round(83f * Mathf.Pow(1.05f, skillToUpdate.level));
-
-        // Update remaining XP after the level up
-        skillToUpdate.xpRemaining = skillToUpdate.xpNeededToLevel - skillToUpdate.currentXP;
-    }
-
-
-    [Command]
-    public void CmdAddXP(int _skillID, double _xpToAdd)
-    {
-        Skill skillToUpdate = skills.Find(s => s.id == _skillID);
-        
-        if (skillToUpdate != null)
-        {
-            skillToUpdate.currentXP += _xpToAdd;
-        }
     }
 
     private void OnSkillsListChanged(SyncList<Skill>.Operation _op, int _index, Skill _skill)
@@ -95,6 +84,7 @@ public class SkillManager : NetworkBehaviour
                 break;
             case SyncList<Skill>.Operation.OP_INSERT:
                 // An item was inserted at a specific index.
+                UpdateSkillsUI(_skill);
                 break;
             case SyncList<Skill>.Operation.OP_REMOVEAT:
                 // An item was removed at a specific index.
@@ -103,7 +93,7 @@ public class SkillManager : NetworkBehaviour
                 // An item's value was changed. This is what will be called when
                 // a skill's XP or level changes.
                 // The updated item is skills[index].
-
+                UpdateSkillsUI(_skill);
                 Debug.Log($"Skill {_skill.skillName} was updated. You now have {_skill.currentXP} XP.");
                 break;
             case SyncList<Skill>.Operation.OP_CLEAR:
@@ -114,23 +104,43 @@ public class SkillManager : NetworkBehaviour
 
     private void UpdateSkillsUI(Skill _skill)
     {
-        GameObject skillUI = Instantiate(CanvasManager.instance.skillUIPrefab, CanvasManager.instance.skillsTransform);
+        foreach (Transform t in CanvasManager.instance.skillsTransform)
+        {
+            if (t.name == _skill.skillName)
+            {
+                SkillUI skillUI = t.GetComponent<SkillUI>();
 
-        skillUI.GetComponentInChildren<TextMeshPro>().text = $"{_skill.skillName} / {_skill.currentXP}";
+                skillUI.Setup(_skill.skillName, _skill.level, (float)_skill.currentXP);
+
+                return;
+            }
+        }
     }
 }
 
 
 
 [Serializable]
-public class Skill
+public struct Skill
 {
     public int id;
     public string skillName;
-    public int level = 0;
-    public int maxLevel = 100;
-    public double currentXP = 0;
-    public double xpNeededToLevel = 0;
-    public double xpRemaining = 0;
-    public float xpMultiplier = 1.10f;
+    public int level;
+    public int maxLevel;
+    public double currentXP;
+    public double xpNeededToLevel;
+    public double xpRemaining;
+    public float xpMultiplier;
+
+    public Skill(int _id, string _name, int _level, int _maxLevel, double _currentXP, double _xpNeeded, double _xpRemaining, float _xpMultiplier)
+    {
+        id = _id;
+        skillName = _name;
+        level = _level;
+        maxLevel = _maxLevel;
+        currentXP = _currentXP;
+        xpNeededToLevel = _xpNeeded;
+        xpRemaining = _xpRemaining;
+        xpMultiplier = _xpMultiplier;
+    }
 }

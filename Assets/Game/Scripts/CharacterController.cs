@@ -160,7 +160,7 @@ public class CharacterController : NetworkBehaviour
 
                 if (skillObject != null)
                 {
-                    transform.LookAt(hits[index].transform.position);
+                    transform.LookAt(Vector3.Lerp(transform.position, hits[index].transform.position, 10f));
                     skillObjectController.UseSkillObject(skillObject);
                 }
 
@@ -172,7 +172,7 @@ public class CharacterController : NetworkBehaviour
 
             else
             {
-                transform.LookAt(hits[0].transform.position);
+                transform.LookAt(Vector3.Lerp(transform.position, hits[index].transform.position, 10f));
                 agent.SetDestination(hits[0].transform.position);
                 Debug.Log($"[Server]: Too far away. Walking to Skill Object.");
             }
