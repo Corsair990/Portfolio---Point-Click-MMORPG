@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b2a6b362e7facd44a94c02b8393f120, type: 3}
+  m_Name: Pine Tree
+  m_EditorClassIdentifier: Assembly-CSharp::SkillData
+  affectedSkillID: 1
+  objectName: Pine Tree
+  requiredLevel: 1
+  chanceOfSuccess: 0.2
+  xpOnSuccess: 13.5
+  xpOnFail: 1
+  successClips:
+  - {fileID: 8300000, guid: 6b77bf01c4e704f168916512af13f6cc, type: 3}
+  failedClips:
+  - {fileID: 8300000, guid: c55db3620b0fe427092ddc5924541299, type: 3}

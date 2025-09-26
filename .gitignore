@@ -8,7 +8,8 @@
 !.gitignore
 
 # Un-ignore the parent folder to allow Git to see inside it.
-!Assets/Game/
+!/Assets/
+!/Assets/Game/
 !Assets/Resources/
 
 # Un-ignore your target folder and everything inside it.
